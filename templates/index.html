@@ -1,620 +1,597 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Flask AI Chat</title>
+  <title>Personal Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
-    /* ------------------- Base & Typography ------------------- */
-    :root {
-        /* Colors */
-        --primary-color: #2c8ea9; /* Teal/Blue for actions */
-        --primary-hover: #1c6b80;
-        --background-color: #121212; /* Deeper, modern dark background */
-        --card-background: #1e1e1e; /* Background for containers/cards */
-        --text-color: #e0e0e0; /* Light gray for main text */
-        --secondary-text-color: #b0b0b0; /* Lighter gray for secondary text */
-        --border-color: #333333; /* Subtle border color */
-        --success-color: #4CAF50;
-        --error-color: #F44336;
-        --warning-color: #ffc107;
-        --user-color: #4fc3f7;
-        --ai-color: #a5d6a7;
-    }
+    :root{
+--primary:#2c8ea9;
+--primary-hover:#1c6b80;
 
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        margin: 0;
-        padding: 0;
-        background: var(--background-color);
-        color: var(--text-color);
-        line-height: 1.6;
-        min-height: 100vh;
-        display: grid;
-        grid-template-rows: auto 1fr auto; /* Header, Main Content, Footer (if any) */
-    }
+--background:#638fac;
+--card:#ffffff;
 
-    /* ------------------- Header & Fixed Controls ------------------- */
-    header {
-        background: #191919;
-        padding: 15px 40px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid var(--border-color);
-        position: sticky;
-        top: 0;
-        z-index: 100;
-    }
+--text:#1c1c1c;
+--secondary:#6b7280;
 
-    h1 {
-        color: var(--primary-color);
-        font-size: 2rem;
-        font-weight: 300;
-        letter-spacing: 1px;
-        margin: 0;
-    }
-    
-    .header-controls {
-        display: flex;
-        gap: 10px;
-    }
-    
-    /* ------------------- Main Content Layout ------------------- */
-    .app-container {
-        display: flex;
-        justify-content: center;
-        padding: 40px 20px;
-        flex-grow: 1; /* Allows the container to take up vertical space */
-    }
+--border:#e3e6ea;
 
-    .main-content-wrapper {
-        width: 100%;
-        max-width: 900px; /* Central container max width */
-        padding: 0 20px;
-    }
-
-    /* ------------------- Chat Box Style ------------------- */
-    #chatBox {
-        background: var(--card-background);
-        border: 1px solid var(--border-color);
-        padding: 10px;
-        border-radius: 12px;
-        height: 380px; /* Increased height for better chat view */
-        overflow-y: auto;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    #chatBox div {
-        margin-top: 10px ;
-        margin-bottom: 2px;
-        padding: 5px 0;
-        border-bottom: 1px dotted #2b2b2b;
-        display: flex;
-        justify-content: flex-start;
-    }
-    #chatBox div > span { 
-    /* Use a standard block/inline-block to contain the text */
-    display: inline-block;
-    padding: 10px 15px;
-    border-radius: 20px;
-    max-width: 80%; /* Ensure messages don't span the whole width */
-    word-wrap: break-word;
-    white-space: normal; 
-}
- #chatBox div > span + span, #chatBox div > span + br + span, #chatBox div > span {
-    /* Use a standard block/inline-block to contain the text */
-    display: inline-block;
-    padding: 10px 15px;
-    border-radius: 20px;
-    max-width: 80%; /* Ensure messages don't span the whole width */
-    word-wrap: break-word;
-    white-space: normal; /* Override pre-wrap for better bubble flow */
+--user:#2c8ea9;
+--ai:#4caf50;
 }
 
-/* AI Message Bubble (Left-aligned) */
-.assistant-message-wrapper {
-    justify-content: flex-start !important; /* Ensure left alignment */
-}
-.assistant-message-wrapper > span {
-    background-color: #383838; /* Dark background for AI bubble */
-    color: var(--ai-color);
-    border-top-left-radius: 5px; /* Sharp corner on the align side */
-}
+/* ---------- Base ---------- */
 
-/* User Message Bubble (Right-aligned) */
-.user-message-wrapper {
-    /* This overrides the default flex-start and moves the entire message to the right */
-    justify-content: flex-end !important; 
-}
-.user-message-wrapper > span {
-    background-color: var(--primary-color); /* Primary color for user bubble */
-    color: #fff;
-    border-top-right-radius: 5px; /* Sharp corner on the align side */
-}
-    
-    /* Styling for the messages appended by JavaScript */
-    .user-message {
-        color: var(--user-color);
-        font-weight: 600;
-    }
-    
-    .assistant-message {
-        color: var(--ai-color);
-        font-weight: 600;
-    }
-
-
-    /* ------------------- Headings ------------------- */
-    h3 {
-        color: var(--secondary-text-color);
-        border-bottom: 1px solid #2b2b2b;
-        padding-bottom: 1px;
-        margin-top: 30px;
-        margin-bottom: 15px;
-        font-weight: 400;
-    }
-
-
-    /* ------------------- Inputs & Buttons ------------------- */
-    input[type="text"], input[type="file"], textarea, select {
-        width: 100%;
-        padding: 12px;
-        margin: 10px 0;
-        border: 1px solid var(--border-color);
-        background-color: #2b2b2b; /* Slightly lighter input background */
-        color: var(--text-color);
-        border-radius: 8px;
-        box-sizing: border-box;
-        transition: border-color 0.3s, box-shadow 0.3s;
-        font-size: 1rem;
-    }
-
-    input[type="text"]:focus, textarea:focus, select:focus {
-        border-color: var(--primary-color);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(44, 142, 169, 0.3);
-    }
-
-    button {
-        padding: 10px 20px;
-        background: var(--primary-color);
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        margin-left: 0; /* Removed default margin */
-        transition: background 0.3s ease, transform 0.1s;
-        font-weight: 600;
-        font-size: 0.9rem;
-        white-space: nowrap;
-    }
-
-    button:hover {
-        background: var(--primary-hover);
-        transform: translateY(-1px);
-    }
-    
-    /* Utility Classes / Grouping */
-    .input-group, .file-upload-group, .action-row, .webcam-controls {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-    
-    .input-group input[type="text"], .input-group input[type="file"], .input-group select {
-        margin: 0;
-        flex-grow: 1;
-    }
-    
-    .input-group label {
-        white-space: nowrap;
-    }
-
-    /* ------------------- Response & Status ------------------- */
-    #transcription, #response, #response-voice {
-        min-height: 50px;
-        padding: 15px;
-        margin-top: 10px;
-        background: var(--card-background);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        color: var(--text-color);
-        word-wrap: break-word;
-        white-space: pre-wrap;
-        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
-        display: none;
-    }
-
-    #transcription {
-        color: var(--secondary-text-color);
-        font-style: italic;
-        display: none;
-    }
-
-    #transcription strong {
-        color: var(--text-color);
-        font-style: normal;
-        display: none;
-    }
-    
-    #status {
-        font-size: 1.1rem;
-        margin-top: 10px;
-        color: var(--secondary-text-color);
-        padding: 10px 0;
-    }
-    
-    #rememberResponse, #imageStatus { 
-        margin-top: 15px; 
-        color: var(--warning-color); 
-        font-weight: 600; 
-        padding-left: 10px;
-    }
-
-    /* ------------------- File List ------------------- */
-    ul#fileList {
-        list-style: none;
-        padding: 0;
-        margin-top: 10px;
-    }
-
-    ul#fileList li {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-        padding: 8px 10px;
-        background: #252525;
-        border-radius: 4px;
-        border-left: 3px solid var(--primary-color);
-    }
-
-    ul#fileList li a {
-        text-decoration: none;
-        color: var(--text-color);
-        flex-grow: 1;
-        transition: color 0.3s;
-    }
-
-    #fileList button {
-        background: var(--error-color); 
-        padding: 4px 8px;
-        margin-left: 15px;
-    }
-
-    /* ------------------- Voice Mode Indicators (Positioning adjusted for centralization) ------------------- */
-    #countdown, #mic-indicator {
-        position: fixed;
-        right: 10%;
-        transform: translateX(50%);
-        z-index: 10;
-    }
-
-    #countdown {
-        top: 100px;
-        right: 150px;
-        font-size: 6rem;
-        font-weight: 900;
-        color: #ffeb3b;
-        text-shadow: 0 0 20px #ffeb3b, 0 0 40px #ffeb3b;
-        animation: fadeScale 1.5s infinite alternate;
-    }
-
-    @keyframes fadeScale {
-        0%   { transform: translateX(50%) scale(0.9); opacity: 0.8; }
-        100% { transform: translateX(50%) scale(1.1); opacity: 1; }
-    }
-
-    #mic-indicator {
-        top: 220px;
-        font-size: 6rem;
-        color: #ffeb3b;
-        /* animation: pulse 1.5s infinite; */
-     
-    }
-    #Name {
-        position: fixed;
-        top: 750px;
-        left: 20px;
-        font-size: 1.2rem;
-        font-weight: 10;
-        color: rgba(255, 255, 255, 0.355);
-        padding: 8px 12px;
-    }
-    
-    @keyframes pulse { 
-        0%{transform: translateX(50%) scale(1);opacity:1} 
-        50%{transform: translateX(50%) scale(1.1);opacity:.8} 
-        100%{transform: translateX(50%) scale(1);opacity:1} 
-    }
-    .settings-wrapper {
-    position: relative;
-    display: inline-block;
+body{
+font-family:Segoe UI,Roboto,Arial,sans-serif;
+margin:0;
+background:var(--background);
+color:var(--text);
 }
 
-.settings-btn {
-    background: var(--primary-color);
-    padding: 12px 20px;
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/* ---------- Header ---------- */
+
+header{
+background:white;
+padding:16px 40px;
+border-bottom:1px solid var(--border);
+
+display:flex;
+justify-content:space-between;
+align-items:center;
 }
 
-.settings-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: var(--card-background);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-    min-width: 220px;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: all 0.3s ease;
-    padding: 5px 0;
+h1{
+margin:0;
+font-weight:550;
+color:var(--primary);
+font-size:28px;
 }
 
-.settings-dropdown.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+/* ---------- Layout ---------- */
+.status{
+    font-size: 0.7rem;
+}
+.dashboard{
+
+display:grid;
+
+grid-template-columns:300px 1fr 300px;
+
+gap:22px;
+
+max-width:1500px;
+
+height: 80vh; 
+margin:auto;
+
+padding:22px;
+
 }
 
-.dropdown-item {
-    padding: 8px 15px;
-    border-bottom: 1px solid var(--border-color);
+.left-panel,
+.center-panel,
+.right-panel{
+
+background:var(--card);
+
+border-radius:12px;
+
+padding:18px;
+
+border:1px solid var(--border);
+
+display:flex;
+min-height:0;
+flex-direction:column;
+
+}
+.webcam-controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
 }
 
-.dropdown-item:last-child {
-    border-bottom: none;
+/* only affect buttons inside webcam controls */
+.webcam-controls button{
+    width: fit-content;
+    min-width:0;
 }
-#image-only-container {
-    max-width: 900px;
-    margin: auto;
-    padding: 40px 20px;
+/* ---------- Chat ---------- */
+
+#chatBox{
+
+flex:1;
+
+background:#fafafa;
+
+border:1px solid var(--border);
+
+border-radius:10px;
+
+padding:16px;
+
+overflow-y:auto;
+
+display:flex;
+
+flex-direction:column;
+
+gap:12px;
+scroll-behavior:smooth;
+
 }
 
-#image-only-container h1 {
-    text-align: center;
-    color: var(--primary-color);
+/* message wrapper */
+
+#chatBox div{
+display:flex;
 }
 
-.dropdown-item button {
-    width: 100%;
-    text-align: left;
-    padding: 8px 12px;
-    font-size: 0.9rem;
-    justify-content: flex-start;
+/* message bubble */
+
+#chatBox span{
+
+display:inline-block;
+
+padding:10px 14px;
+
+border-radius:18px;
+
+max-width:75%;
+
+line-height:1.5;
+
+word-break:break-word;
+
+font-size:14px;
+
 }
 
-.model-select-item {
-    padding: 12px 15px !important;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+/* user message */
+
+.user-message-wrapper{
+justify-content:flex-end;
 }
 
-.model-select-item select {
-    font-size: 0.9rem;
+.user-message-wrapper span{
+
+background:var(--primary);
+
+color:white;
+
+border-top-right-radius:6px;
 }
 
-/* Close dropdown when clicking outside */
-.settings-dropdown.show ~ button:focus + .settings-dropdown,
-body.settings-open .settings-dropdown {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+/* assistant message */
+
+.assistant-message-wrapper{
+justify-content:flex-start;
 }
 
-    
-    /* ------------------- Webcam/Image Section ------------------- */
-    #webcamVideo {
-        display: block;
-        margin: 15px auto;
-        border: 2px solid var(--primary-color);
-        border-radius: 8px;
-        background-color: black;
+.assistant-message-wrapper span{
+
+background:#eef2f6;
+
+color:#222;
+
+border-top-left-radius:6px;
+}
+
+/* ---------- Inputs ---------- */
+
+input[type="text"],
+textarea,
+select{
+
+width:80%;
+
+padding:12px 14px;
+
+border-radius:8px;
+
+border:1px solid var(--border);
+
+background:white;
+
+font-size:14px;
+
+box-sizing:border-box;
+
+}
+
+/* file upload fix */
+
+input[type="file"]{
+
+width:100%;
+
+padding:8px;
+
+border-radius:8px;
+
+border:1px solid var(--border);
+
+background:white;
+
+font-size:13px;
+
+}
+
+/* ---------- Button System ---------- */
+
+button{
+
+padding:6px 8px;
+width: fit-content;
+border-radius:8px;
+
+cursor:pointer;
+
+background:var(--primary);
+
+color:white;
+
+font-size:14px;
+
+font-weight:600;
+
+min-width:0;
+
+transition:0.2s;
+
+}
+
+button:hover{
+background:var(--primary-hover);
+}
+
+/* ---------- Button Layout ---------- */
+
+.input-group,
+.file-upload-group,
+.action-row,
+.webcam-controls{
+
+display:flex;
+
+gap:12px;
+
+align-items:center;
+
+flex-wrap:wrap;   /* IMPORTANT: prevents sticking */
+
+margin-bottom:14px;
+
+}
+
+/* prevent inputs from pushing buttons */
+
+.input-group input{
+flex:1;
+min-width:200px;
+}
+#voiceOverlay{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.3);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    z-index:9999;
+
+    opacity:0;
+    visibility:hidden;
+    transition:0.3s;
+}
+
+#voiceOverlay.active{
+    opacity:1;
+    visibility:visible;
+}
+
+/* Mic animation */
+
+.mic-container{
+    text-align:center;
+}
+
+.mic-circle{
+    width:180px;
+    height:180px;
+    border-radius:50%;
+    background: var(--primary);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    transition: transform 0.1s linear;
+}
+
+/* Pulse animation */
+
+@keyframes pulse{
+    0%{
+        transform:scale(1);
+        box-shadow:0 0 0 0 rgba(88, 226, 97, 0.7);
     }
-
-    .webcam-controls button {
-        flex-grow: 1;
-        margin-top: 0;
+    70%{
+        transform:scale(1.2);
+        box-shadow:0 0 0 25px rgba(88, 226, 97, 0.7);
     }
-    
-    .webcam-controls input {
-        margin-bottom: 0;
+    100%{
+        transform:scale(1);
     }
-    
-    .webcam-controls > :not(input[type="text"]) {
-        flex-basis: 48%; /* Split the buttons into roughly two columns */
-    }
-    
-    .webcam-controls input[type="text"] {
-        flex-basis: 100%; /* Make prompt full width */
-    }
+}
+
+/* Exit button */
+
+#exitVoiceUI{
+    margin-top:20px;
+    padding:10px 16px;
+    border:none;
+    border-radius:8px;
+    background:white;
+    color: var(--primary);
+    cursor:pointer;
+}
+/* ---------- File List ---------- */
+
+#fileList{
+
+list-style:none;
+
+padding:0;
+
+margin-top:10px;
+
+}
+
+#fileList li{
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+gap:10px;
+
+padding:10px;
+
+border-radius:8px;
+
+background:#f4f6f8;
+
+border:1px solid var(--border);
+
+margin-bottom:8px;
+
+}
+
+#fileList a{
+
+text-decoration:none;
+
+color:#333;
+
+word-break:break-all;
+
+flex:1;
+
+}
+
+#fileList button{
+
+background:#e53935;
+
+min-width:70px;
+
+}
+
+/* ---------- Dropdown ---------- */
+
+.settings-wrapper{
+position:relative;
+}
+
+.settings-dropdown{
+
+position:absolute;
+
+right:0;
+
+top:50px;
+
+background:white;
+
+border:1px solid var(--border);
+
+border-radius:14px;
+
+box-shadow:0 10px 30px rgba(0,0,0,0.08),
+        0 2px 6px rgba(0,0,0,0.04);
+min-width:240px;
+
+padding:10px 6px;
+
+opacity:0;
+
+visibility:hidden;
+
+transform:translateY(-10px) scale(0.98);
+
+transition:
+        opacity 0.25s ease,
+        transform 0.25s ease,
+        visibility 0.25s;
+backdrop-filter: blur(6px); 
+}
+
+.settings-dropdown.show{
+
+opacity:1;
+
+visibility:visible;
+
+transform: translateY(0) scale(1);
+}
+.settings-row{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+
+padding:8px 12px;
+}
+
+.settings-row label{
+font-size:14px;
+color:var(--secondary);
+min-width:90px;
+}
+
+.settings-row select{
+flex:1;
+width:auto;
+}
 
 
-    /* ------------------- Responsive Adjustments ------------------- */
-    @media (max-width: 950px) {
-        .app-container {
-            padding: 20px 10px;
-        }
-        
-        /* Center content on smaller screens but less padding */
-        .main-content-wrapper {
-            padding: 0 10px;
-        }
+/* ---------- Responsive ---------- */
 
-        header {
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 15px 20px;
-            position: relative; /* Unstick header on mobile */
-        }
-        
-        h1 {
-            margin-bottom: 10px;
-            font-size: 1.8rem;
-        }
+@media(max-width:1100px){
 
-        .header-controls {
-            width: 100%;
-            flex-direction: column;
-        }
-        
-        .header-controls button {
-            width: 100%;
-        }
+.dashboard{
+grid-template-columns:1fr;
+}
 
-        /* Stack input groups on smaller screens */
-        .input-group, .file-upload-group, .webcam-controls {
-            flex-direction: column;
-            align-items: stretch;
-        }
 
-        .input-group button, .file-upload-group button, .webcam-controls button {
-            width: 100%;
-            margin-top: 5px;
-        }
-        
-        .webcam-controls > :not(input[type="text"]) {
-            flex-basis: 100%;
-        }
-        
-        #countdown {
-            top: 50%;
-            right: 50%;
-            color: black;
-            display: none !important;
-        } 
-        #mic-indicator {
-            top: 55%;
-            right: 50%;
-        }
-    }
+
+}
 </style>
 </head>
+
 <body>
+    <div id="voiceOverlay">
+    <div class="mic-container">
+        <div class="mic-circle"></div>
+        <button id="exitVoiceUI">Show Chat</button>
+    </div>
+</div>
     <header>
         <h1>Personal Assistant</h1>
 
         <div class="header-controls">
             <div class="settings-wrapper">
-        <button id="settingsBtn" class="settings-btn">
-            <i class="fas fa-cog"></i> Settings
-        </button>
-        <div id="settings-dropdown" class="settings-dropdown">
-            <div class="dropdown-item">
-                <button id="ollamaStatusBtn" onclick="toggleOllama()">Ollama: Checking...</button>
+                <button id="settingsBtn" class="settings-btn">
+                    <i class="fas fa-cog"></i> 
+                    Settings
+                </button>
+                <div id="settings-dropdown" class="settings-dropdown">
+                    <div class="dropdown-item">
+                        <button id="ollamaStatusBtn" onclick="toggleOllama()">Ollama: Checking...</button>
+                    </div>
+                    
+                 
+                    <div class="settings-row">
+                        <label for="modelSelect" style="font-size: 0.9rem; color: var(--secondary-text-color);">Model:</label>
+                        <br>
+                        <select id="modelSelect" onchange="setModel()">
+                            <option value="gemma3:1b">Gemma3 1B</option>
+                            
+                            <option value="qwen2.5:1.5b">Qwen2.5 1.5B</option>
+                            <option value="gemma4:e2b">Gemma4 E2B </option>
+                            <option value="gemma3:4b">Gemma3 4B</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                    
+                    <label for="voiceSelect" style="font-size: 0.9rem;color: var(--secondary-text-color);padding: 8px 15px;
+                        ">Voice:</label>
+                    <select id="voiceSelect"></select>
+                    <div class="settings-row">
+                    
+                    <label for="wakeWordSelect" style="font-size: 0.9rem; color: var(--secondary-text-color);padding: 8px 15px;
+                    "> Wake Word:</label>
+                            <select id="wakeWordSelect" onchange="changeWakeWord()"></select>
+                    </div>
+                    </div>
+                </div>
             </div>
-            <div class="dropdown-item">
-                 <button id="imageModeToggleBtn" onclick="enterImageMode()">Image Query 📸</button>
-
-            </div>
-            <div class="dropdown-item">
-                <button id="modeToggleBtn" onclick="toggleMode()">Switch to Text Mode</button>
-            </div>
-            <div class="dropdown-item model-select-item">
-                <label for="modelSelect" style="font-size: 0.9rem; color: var(--secondary-text-color);">Model:</label>
-                <select id="modelSelect" onchange="setModel()">
-                    <option value="smollm:latest">Model For Text 1</option>
-                    <option value="gemma3:1b">Model For Text 2</option>
-                    <option value="gemma3:4b">Model For Image</option>
-                    <option value="mistral:7b">Model For Text 3</option>
-                    <option value="qwen2.5:1.5b">Model For Text 4</option>
-                </select>
-            </div>
-            <label for="voiceSelect" style="font-size: 0.9rem;color: var(--secondary-text-color);padding: 8px 15px;
-    ">Voice:</label>
-<select id="voiceSelect"></select>
-            <label for="wakeWordSelect" style="font-size: 0.9rem; color: var(--secondary-text-color);padding: 8px 15px;
-    "> Choose Wake Word:</label>
-            <select id="wakeWordSelect" onchange="changeWakeWord()"></select>
-        </div>
-    </div>
         </div>
     </header>
-
-    <div class="app-container">
-        <div class="main-content-wrapper">
+<div class="dashboard">
+    <!-- LEFT PANEL --> 
+    <div class="left-panel"> 
+        <h3>Custom Prompt</h3>
+        <textarea id="promptBox" rows="2"></textarea>
+<button onclick="savePrompt()">Save</button>
+        <h3>Documents 📄</h3> 
+        <div class="file-upload-group"> 
+            <div id="rememberResponse"></div>
+            <input type="file" id="docInput" accept=".pdf,.docx"> 
             
-            <div id="Name">Mehak Agrawal</div>
-
-            <div id="voice-mode-container">
-                <p id="status"></p>
-                <h1>Hello, Ready to dive in?</h1>
-                
-               <div id="countdown"></div>
-                <div id="transcription"><strong>Transcription:</strong> <span id="text"></span></div>
-                <div id="response-voice"></div>
-               
-
-
-            </div>
-            <div id="chatBox"></div>
-            <div id="text-mode-container" style="display: none;">
-                <h1>Hello, Ready to dive in?</h1>
-               
-                 <h3>Ask Your Query:</h3>
-                <div class="input-group">
-                    <input type="text" id="userInput" placeholder="Enter your question" />
-                    <button onclick="askModel()">Ask Model</button>
-                </div>
-                <div id="response"></div>
-                <h3>Uploaded Documents:</h3>
-                <ul id="fileList"></ul>
-                <div class="file-upload-group">
-                    <input type="file" id="docInput" accept=".pdf,.docx" />
-                    <button onclick="uploadDocument()">Upload Document</button>
-                    <button onclick="clearFile()">Remove Document</button>
-                </div>
-               
-                
+            <button onclick="uploadDocument()">Upload</button>
+        </div> <ul id="fileList"></ul>
+        
+    </div>
+        
+    
+    <!-- CENTER PANEL --> 
+     <div class="center-panel"> 
+        <div id="chatBox"></div> 
+        <div class="chat-input"> 
+            <input type="text" id="userInput" placeholder="Type message and press Enter"> 
+            <button onclick="askModel()">Send</button> 
         </div>
-    </div>
-    <div id="image-only-container" style="display:none;">
-        <button onclick="exitImageMode()">⬅ Back to Chat</button>
-
-                    <h3>Image Description:</h3>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <video id="webcamVideo" width="320" height="240" autoplay></video>
-                        <canvas id="webcamCanvas" width="320" height="240" style="display: none;"></canvas>
-                    </div>
-                    <div class="webcam-controls">
-                        <input type="text" id="imagePrompt" placeholder="Optional: Prompt for the image (e.g., 'What is the color of the book?')" />
-                        <button onclick="startWebcam()">Start/Stop Webcam</button>
-                        <button onclick="captureAndDescribe()">Capture & Describe</button>
-                    </div>
-                    <p id="imageStatus"></p>
-                    <div id="imageDescriptionResponse" style="
-    min-height: 50px; 
-    padding: 15px; 
-    margin-top: 10px; 
-    background: var(--card-background); 
-    border: 1px solid var(--border-color); 
-    border-radius: 8px; 
-    color: var(--ai-color); /* Highlight color for image response */
-    word-wrap: break-word; 
-    white-space: pre-wrap;
-">
-    </div>
-                </div>
-
+    </div> 
+    <!-- RIGHT PANEL --> 
+    <div class="right-panel"> 
+        
             
+    <!-- <h3>Voice Query</h3>   -->
+    <p id="status"></p>      
+  <div class="webcam-controls">
+    <button id="voiceBtn" onclick="toggleVoice()">🎤 Start Voice</button>
+    <h3>Image Description</h3>
+        <div class="webcam-controls">
+    <button id="camBtn" onclick="toggleCamera()">📸 Start Camera</button>
+    <button id="captureBtn" onclick="captureAndDescribe()">Capture</button>
+</div>
+        <input type="text" id="imagePrompt" placeholder="Optional prompt for image">
 
-                
-            </div>
-    <div id="mic-indicator" style="display: none;"><i class="fas fa-microphone"></i></div>
+<video id="webcamVideo" width="240" autoplay></video> <canvas id="webcamCanvas" width="240" style="display:none"></canvas> 
+
+
+<div id="imageDescriptionResponse"></div>
+        <p id="imageStatus"></p> 
+   
+</div>
+ 
+  
+        
+        
+        <hr>
+       
+
+   
+
+</div>
+    
     <script>
     let mediaRecorder;
     let audioChunks = [];
@@ -623,10 +600,12 @@ body.settings-open .settings-dropdown {
     let isVoiceMode = true;
     let listenTimeout = null;
     let requestStartTime = null;
+    let isImageMode = false;
+    let isProcessingImage = false;
 
     // --- VAD Configuration ---
-    const SILENCE_THRESHOLD = 0.1; // Adjust this value (e.g., 0.01 to 0.1)
-    const SILENCE_DURATION = 1500;  
+    const SILENCE_THRESHOLD = 0.09 ; // Adjust this value (e.g., 0.01 to 0.1)
+    const SILENCE_DURATION = 1300;  
     const ANALYSIS_INTERVAL = 100;  // Check every 100ms
     let silenceTimer = 0;
     let recordingActive = false; // Flag to indicate if we have detected speech and started recording
@@ -635,73 +614,6 @@ body.settings-open .settings-dropdown {
     let audioContext;
     let analyser;
     let scriptProcessor;
-
-    function switchToVoiceMode() {
-        const voiceContainer = document.getElementById("voice-mode-container");
-        const textContainer = document.getElementById("text-mode-container");
-        const micIndicator = document.getElementById("mic-indicator");
-        const modeToggleBtn = document.getElementById("modeToggleBtn");
-
-        isVoiceMode = true;
-        textContainer.style.display = "none";
-        voiceContainer.style.display = "block";
-        micIndicator.style.display = "block";
-        modeToggleBtn.innerText = "Switch to Text Mode";
-        keepRunning = true;
-        setupMicrophone();
-        document.getElementById("chatBox").innerHTML = "";
-    }
-
-    function switchToTextMode() {
-        const voiceContainer = document.getElementById("voice-mode-container");
-        const textContainer = document.getElementById("text-mode-container");
-        const micIndicator = document.getElementById("mic-indicator");
-        const modeToggleBtn = document.getElementById("modeToggleBtn");
-        const chatBox = document.getElementById("chatBox");
-
-        stopListeningLoop(); // Stop VAD and microphone cleanup
-
-        isVoiceMode = false;
-        document.getElementById("response").textContent = "";
-        voiceContainer.style.display = "none";
-        textContainer.style.display = "block";
-        micIndicator.style.display = "none";
-        modeToggleBtn.innerText = "Switch to Voice Mode";
-        keepRunning = false;
-        chatBox.innerHTML = "";
-    }
-    
-    function enterImageMode() {
-   
-    stopSpeaking();
-    stopListeningLoop();
-
-    isVoiceMode = false;
-
-    
-     document.querySelector(".main-content-wrapper").style.display = "none";
-    document.getElementById("image-only-container").style.display = "block";
-
-    
-    document.getElementById("chatBox").innerHTML = "";
-    document.getElementById("status").textContent = "";
-}
-function exitImageMode() {
-    document.getElementById("image-only-container").style.display = "none";
-     document.querySelector(".main-content-wrapper").style.display = "block";
-    
-    switchToTextMode();
-}
-
-
-    function toggleMode() {
-        if (isVoiceMode) {
-            stopSpeaking();
-            switchToTextMode();
-        } else {
-            switchToVoiceMode();
-        }
-    }
 
 async function loadVoices() {
     const res = await fetch("/get_tts_voices");
@@ -722,8 +634,38 @@ async function loadVoices() {
 }
 
 loadVoices();
+document.getElementById("userInput").addEventListener("keypress", function(e){
+if(e.key === "Enter"){
+askModel();
+}
+});
+let isListening = false;
+function toggleVoice() {
+    const btn = document.getElementById("voiceBtn");
+    const overlay = document.getElementById("voiceOverlay");
+    if (!isListening) {
+        startVoice();
+        btn.textContent = "🛑 Stop Voice";
+        isListening = true;
+        overlay.classList.add("active");   // SHOW VOICE UI
+    } else {
+        stopListeningLoop();
+        btn.textContent = "🎤 Start Voice";
+        isListening = false;
+        stopSpeaking(); // Stop any ongoing TTS
+        overlay.classList.remove("active"); // HIDE VOICE UI
+    }
+}
 
+document.getElementById("exitVoiceUI").addEventListener("click", () => {
+    document.getElementById("voiceOverlay").classList.remove("active");
+});
+function startVoice(){
+keepRunning = true;
+isVoiceMode = true;
+setupMicrophone();
 
+}
     async function setupMicrophone() {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: {
@@ -733,7 +675,7 @@ loadVoices();
             console.log("Microphone access granted.");
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = 2048; 
+            analyser.fftSize = 1024; 
             
             scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
             
@@ -748,15 +690,49 @@ loadVoices();
         } catch (err) {
             console.error("Microphone access denied:", err);
             document.getElementById("status").textContent = "❌ Microphone access denied.";
-            document.getElementById("mic-indicator").style.display = "none";
+            
         }
     }
-   
-    function stopListeningLoop() {
-        if (listenTimeout) clearTimeout(listenTimeout);
-        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+   async function loadPrompt() {
+    const res = await fetch("/get_prompt");
+    const data = await res.json();
+    document.getElementById("promptBox").value = data.prompt;
+}
 
+loadPrompt();
+async function savePrompt() {
+    const prompt = document.getElementById("promptBox").value;
+
+    await fetch("/set_prompt", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ prompt })
+    });
+
+    alert("Prompt updated!");
+}
+    function stopListeningLoop() {
+        keepRunning = false;
+        isVoiceMode = false;
+        if (listenTimeout){
+            clearTimeout(listenTimeout);
+             listenTimeout = null;
+        } 
+            
+        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        document.getElementById("status").textContent = "";
+        if (analyser) analyser.disconnect();
         // Cleanup audio context resources
+        if (scriptProcessor) {
+        scriptProcessor.disconnect();
+        scriptProcessor.onaudioprocess = null;
+    }
+        
+    if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+    }
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
             stream = null;
@@ -777,6 +753,7 @@ loadVoices();
         e.stopPropagation();
         dropdown.classList.toggle('show');
         body.classList.toggle('settings-open');
+        loadWakeWords();  
     });
 
     // Close dropdown when clicking outside
@@ -802,7 +779,27 @@ loadVoices();
         for (let i = 0; i < buffer.length; i++) {
             maxVolume = Math.max(maxVolume, Math.abs(buffer[i]));
         }
+        const mic = document.querySelector(".mic-circle");
 
+if (mic) {
+    // Normalize volume (tweak multiplier if needed)
+    let scale = 1 + (maxVolume * 3); 
+
+    // Clamp scale (so it doesn't explode)
+    scale = Math.min(Math.max(scale, 1), 2.2);
+
+    mic.style.transform 
+    = `scale(${scale})`;
+}
+if (maxVolume < SILENCE_THRESHOLD) {
+    mic.style.transform = "scale(1)";
+    mic.style.boxShadow = "0 0 10px rgba(44,142,169,0.3)";
+}
+if (maxVolume < SILENCE_THRESHOLD) {
+    mic.style.transform = "scale(1)";
+    mic.style.boxShadow = "0 0 10px rgba(44,142,169,0.3)";
+}
+mic.style.boxShadow = `0 0 ${50 + maxVolume * 60}px rgba(44,142,169,${0.3 + maxVolume})`;
         // --- VAD DECISION ---
         if (maxVolume > SILENCE_THRESHOLD) {
             // SPEECH DETECTED
@@ -811,8 +808,8 @@ loadVoices();
                 // START RECORDING on first speech detection
                 recordingActive = true;
                 startMediaRecorder();
-                document.getElementById("status").textContent = "🔴 Recording...";
-                document.getElementById("mic-indicator").classList.add('recording');
+                document.getElementById("status").textContent = "🗣️ Speaking";
+                
             }
         } else {
             // SILENCE DETECTED
@@ -823,59 +820,42 @@ loadVoices();
                     // STOP RECORDING: Silence limit reached
                     console.log("Stopping recording due to silence.");
                     stopMediaRecorder();
-                    document.getElementById("mic-indicator").classList.remove('recording');
+                    
                     return; // Stop processing further chunks until the next loop starts
                 }
             }
         }
-        
-        // Update status for user feedback (only if recording is active)
-        if (recordingActive) {
-             const timeRemaining = Math.max(0, SILENCE_DURATION - silenceTimer) / 1000;
-            document.getElementById("countdown").style.display = "none";
-        } else {
-             document.getElementById("countdown").style.display = "none";
-        }
     }
-    
+    isVoiceMode = false;
     // Function to start the MediaRecorder, called only when speech is first detected
     function startMediaRecorder() {
         if (mediaRecorder && mediaRecorder.state === 'recording') return;
         
         audioChunks = [];
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        mediaRecorder = new MediaRecorder(stream);
 
         mediaRecorder.ondataavailable = (event) => { audioChunks.push(event.data); };
         
         mediaRecorder.onstop = () => {
+            if (!keepRunning) return; 
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             sendAudioToServer(audioBlob, "/check_wake_word");
         };
 
         mediaRecorder.start();
     }
-    
-    // Function to stop the MediaRecorder, called when silence limit is reached
-    function stopMediaRecorder() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-        }
-        recordingActive = false;
-        silenceTimer = 0;
-    }
-
 
     // The main listening loop now simply resets the state and waits for the next command
     function startListeningLoop() {
         if (!keepRunning) {
             document.getElementById("status").textContent = "Listening is paused.";
-            document.getElementById("mic-indicator").style.display = "none";
+            
             return;
         }
 
-        document.getElementById("mic-indicator").style.display = "none";
-        document.getElementById("status").textContent = "🎤 Please Speak Your Query ";
-        document.getElementById("countdown").style.display = "none";
+        
+        document.getElementById("status").textContent = "No Speech Detected. Waiting for command...";
+        
         
         // Reset VAD state for the next command
         recordingActive = false;
@@ -883,7 +863,6 @@ loadVoices();
         
         // The VAD logic in onAudioProcess will start/stop the recorder
     }
-    
     
     // --- OLLAMA STATUS CHECKING ---
     let isOllamaRunning = false;
@@ -942,46 +921,71 @@ loadVoices();
 
     // --- WEBCAM/IMAGE DESCRIPTION ---
     let webcamStream = null;
+    let cameraOn = false;
 
-    function startWebcam() {
-        const video = document.getElementById('webcamVideo');
-        if (webcamStream) {
-            webcamStream.getTracks().forEach(track => track.stop());
-            webcamStream = null;
-            video.srcObject = null;
-            document.getElementById('imageStatus').innerText = "Webcam stopped.";
-        } else {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    webcamStream = stream;
-                    video.srcObject = stream;
-                    document.getElementById('imageStatus').innerText = "Webcam active. Ready to capture.";
-                })
-                .catch(err => {
-                    console.error("Webcam access error:", err);
-                    document.getElementById('imageStatus').innerText = "❌ Webcam access denied.";
-                });
-        }
+function toggleCamera() {
+    const btn = document.getElementById("camBtn");
+
+    if (!cameraOn) {
+        startWebcam();
+        btn.textContent = "🛑 Stop Camera";
+        cameraOn = true;
+    } else {
+        stopWebcam();
+        const imageResponseContainer = document.getElementById("imageDescriptionResponse");
+        imageResponseContainer.innerHTML = "";
+        btn.textContent = "📸 Start Camera";
+        cameraOn = false;
     }
+}
+    function startWebcam() {
+            if (webcamStream) return;
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            webcamStream = stream;
+            const video = document.getElementById("webcamVideo");
+            video.srcObject = stream;
+            video.play();
+            document.getElementById("imageStatus").innerText = "";
+        })
+        .catch(err => {
+            console.error("Camera error:", err);
+        });
+    }
+    function stopWebcam() {
+    if(!webcamStream) return;
+    if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = null;
+    }
+
+    const video = document.getElementById("webcamVideo");
+    video.srcObject = null;
+    document.getElementById("imageStatus").innerText = "";
+}
     function captureAndDescribe() {
-        if (!webcamStream) {
-            alert("Please start the webcam first.");
-            return;
-        }
-        const captureBtn = document.querySelector('button[onclick="captureAndDescribe()"]'); 
-        captureBtn.disabled = true;
-        captureBtn.innerText = "⏳ Processing...";
+      if (!webcamStream || isProcessingImage) return;
+        isProcessingImage = true;
+        
+        const imageResponseContainer = document.getElementById("imageDescriptionResponse");
+        imageResponseContainer.innerHTML = "";
+            
         const video = document.getElementById('webcamVideo');
         const canvas = document.getElementById('webcamCanvas');
         const context = canvas.getContext('2d');
-        
+        canvas.width = 240;
+        canvas.height = 240;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+        video.style.display = "none";
+    canvas.style.display = "block";
+        webcamStream.getTracks().forEach(track => track.stop());
+    webcamStream = null;
         canvas.toBlob(blob => {
             if (blob) {
                 sendImageForDescription(blob);
             } else {
-                document.getElementById('imageStatus').innerText = "Error capturing image.";
+                 releaseCamera();
             }
         }, 'image/jpeg', 0.9);
     }
@@ -992,7 +996,8 @@ loadVoices();
         const captureBtn = document.querySelector('button[onclick="captureAndDescribe()"]');
         const formData = new FormData();
         formData.append("image", imageBlob, "captured_image.jpg");
-        formData.append("prompt", promptText || 'Describe this image in detail.');
+        formData.append("prompt",
+    promptText.trim() || "Describe this image in detail.");
 
         fetch('/describe_image', {
             method: 'POST',
@@ -1004,20 +1009,38 @@ loadVoices();
             document.getElementById('imageStatus').innerText = "✅ Description complete.";
             if (d.response) {
                 imageResponseContainer.innerHTML = d.response;
+                releaseCamera();
             } else {
             imageResponseContainer.innerText = "Error: " + (d.error || "No response received from model.")
+            releaseCamera();
             }
         })
         .catch(err => {
             console.error("Error describing image:", err);
+            releaseCamera();
             document.getElementById('imageStatus').innerText = "❌ Failed to connect to server for description.";
         });
     }
+    function releaseCamera() {
+    const captureBtn = document.getElementById("captureBtn");
+    const video = document.getElementById("webcamVideo");
+    const canvas = document.getElementById("webcamCanvas");
+    captureBtn.disabled = false;
+    captureBtn.innerText = "Capture";
+
+    canvas.style.display = "none";
+    video.style.display = "block";
+
+    isProcessingImage = false;
+
+
+    startWebcam(); // restart camera
+}
 
     // --- AUDIO SENDING AND PROCESSING  ---
     function sendAudioToServer(audioBlob, route) {
-        document.getElementById("mic-indicator").style.display = "none";
-        document.getElementById("status").textContent = "🚀 Getting Your Response";
+        
+        document.getElementById("status").textContent = "Getting Your Response";
 
         const formData = new FormData();
         formData.append("audio_file", audioBlob, "recorded.webm");
@@ -1027,49 +1050,67 @@ loadVoices();
             .then(data => {
                 const transcription = data.transcription || "";
                 const timeTaken = ((performance.now() - requestStartTime) / 1000).toFixed(2);
-                document.getElementById("text").textContent = transcription;
+                
                 
                 if (transcription === "") {
                     document.getElementById("status").textContent = "👂 Just listening...";
-                    setTimeout(startListeningLoop, 500);
-                    return;
+                    if (keepRunning) {
+                        listenTimeout = setTimeout(startListeningLoop, 500);
+                        return;
+                    }
+                    
                 }
                 
                 if(!data.wake_word_detected) {
                     document.getElementById("status").textContent = "👂 Just listening...";
-                    document.getElementById("text").innerHTML = "";
-                    setTimeout(startListeningLoop, 500);
+                    
+                    if (keepRunning) {
+    listenTimeout = setTimeout(startListeningLoop, 500);
+}
                     return;
                 }
 
                 // If wake word is detected and response exists
                 if (isVoiceMode && data.response !== undefined) {
                     appendMessage("user", transcription);
-                    document.getElementById("response").innerHTML = "";
-                    document.getElementById("response-voice").innerHTML = data.response;
+               
                     appendMessage("assistant", data.response);
                     appendResponseTime(timeTaken);
-                    setTimeout(startListeningLoop,2000); 
+                    if (keepRunning) {
+    listenTimeout = setTimeout(startListeningLoop, 2000);
+}
                     
                 } else if (!isVoiceMode && data.response !== undefined) {
-                    document.getElementById("response").innerHTML = data.response;
-                    setTimeout(startListeningLoop, 500);
+                    
+                    if (keepRunning) {
+    listenTimeout = setTimeout(startListeningLoop, 500);
+    return;
+}
                 }
 
                 if (data.stop_detected) {
                     keepRunning = true;
-                    document.getElementById("response-voice").innerHTML = "";
+                    
                     document.getElementById("status").textContent = "🛑 Stopped. Listening again…";
-                    setTimeout(startListeningLoop, 500);
+                    if (keepRunning) {
+    listenTimeout = setTimeout(startListeningLoop, 500);
+    return;
+}
                 } else {
                     document.getElementById("status").textContent = "✅ Ready for your next command.";
-                    setTimeout(startListeningLoop, 500);
+                    if (keepRunning) {
+    listenTimeout = setTimeout(startListeningLoop, 500);
+    return;
+}
                 }
             })
             .catch(err => {
                 console.error("Error sending audio:", err);
                 document.getElementById("status").textContent = "❌ Error: " + err.message;
-                setTimeout(startListeningLoop, 800);
+                if (keepRunning) {
+    listenTimeout = setTimeout(startListeningLoop, 500);
+    return;
+}
             });
     }
     function setModel() {
@@ -1129,14 +1170,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     link.href = `/uploads/${encodeURIComponent(file)}`;
                     link.innerText = file; link.target = "_blank";
                     const del = document.createElement("button");
-                    del.innerHTML = "🗑️"; del.style.marginLeft = "10px";
+                    del.innerHTML = "Delete"; del.style.marginLeft = "10px";
                     del.onclick = () => { if (confirm(`Delete ${file}?`)) deleteFile(file); };
                     li.appendChild(link); li.appendChild(del);
                     fileList.appendChild(li);
                 });
             })
             .catch(console.error);
-    }
+    }//🗑️
     function deleteFile(filename) {
         fetch("/delete_document", {
             method: "POST",
@@ -1165,9 +1206,35 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append("file", file);
         fetch("/upload_document", { method: "POST", body: formData })
             .then(r => r.json())
-            .then(d => { document.getElementById("rememberResponse").innerText = d.message || d.error; fetchUploadedFiles(); })
+            .then(d => { if (d.message) {
+        document.getElementById("rememberResponse").innerText = "File uploaded successfully";
+        fetchUploadedFiles();  // refresh list instantly
+        document.getElementById("docInput").value = ""; // clear input
+    } else {
+        document.getElementById("rememberResponse").innerText = d.error;
+    } })
             .catch(() => { document.getElementById("rememberResponse").innerText = "Failed to upload."; });
     }
+    async function loadWakeWords() {
+    const res = await fetch("/get_wake_words");
+    const data = await res.json();
+
+    const select = document.getElementById("wakeWordSelect");
+
+    select.innerHTML = "";
+
+    data.available.forEach(word => {
+        const option = document.createElement("option");
+        option.value = word;
+        option.textContent = word;
+
+        if (word === data.selected) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+    });
+}
     function askModel() {
         let userInput = document.getElementById("userInput").value;
         let selectedModel = document.getElementById("modelSelect").value;
@@ -1180,16 +1247,25 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(d => {
                 let response = d.response || "No response received";
                 const timeTaken = ((performance.now() - requestStartTime) / 1000).toFixed(2);
-                document.getElementById("response").innerHTML = response;
+                
                 appendMessage("assistant", response);
                 appendResponseTime(timeTaken);
                 document.getElementById("userInput").value = ""; // Clear input after successful query
             })
             .catch(() => { 
-                document.getElementById("response").innerText = "Error getting response";
+                
                 document.getElementById("userInput").value = userInput; // Restore input on error
             });
     }
+    
+function stopMediaRecorder() {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+    }
+    recordingActive = false;
+    silenceTimer = 0;
+    
+}
     function stopSpeaking() {
         fetch('/stop_tts', {
             method: 'POST'
@@ -1244,23 +1320,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
     window.onload = function () {
-        switchToVoiceMode();
-        fetchUploadedFiles();
         checkOllamaStatus();
-        fetch("/get_wake_words")
-        .then(res => res.json())
-        .then(data => {
-            let ddl = document.getElementById("wakeWordSelect");
-
-            data.available.forEach(w => {
-                let opt = document.createElement("option");
-                opt.value = w;
-                opt.textContent = w.charAt(0).toUpperCase() + w.slice(1);
-                if (w === data.selected) opt.selected = true;
-                ddl.appendChild(opt);
-            });
-        });
+        fetchUploadedFiles();
+        loadWakeWords();
+        
+        
     };
 </script>
 </body>
 </html>
+

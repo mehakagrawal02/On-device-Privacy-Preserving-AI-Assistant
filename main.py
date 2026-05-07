@@ -1,3 +1,4 @@
+ 
 from flask import Flask, render_template, jsonify, request, send_from_directory
 import requests
 import json
@@ -9,56 +10,45 @@ import threading
 import time
 from faster_whisper import WhisperModel
 from docx import Document
-
 import sounddevice as sd
 import soundfile as sf
+from faster_whisper.audio import decode_audio
 sd.default.samplerate = 44100
 print(sd.query_devices())
 # ---------- Config ----------
 app = Flask(__name__, static_folder="static", template_folder="templates")
-DATA_FILE = "data.txt"
+DATA_FILE = "data2.txt"
 UPLOAD_FOLDER = "uploads"
 RECORD_PATH = "recorded.webm"  
 chat_history = []
-WAKE_WORDS = ["jaya", "zoya", "lily", "ravi"]
+WAKE_WORDS = ["jaya", "zoya", "lily", "ravi","sifra"]
 SELECTED_OLLAMA_MODEL = "gemma3:1b"
 SELECTED_WAKE_WORD = "zoya"
 # ---------- Globals ----------
 whisper_model = None
+AVAILABLE_VOICES = [
+    "af_heart",
+    "af_bella",
+    "am_adam"
+]
 
 _TTS_THREAD = None
 _TTS_STOP_FLAG = threading.Event()
 _TTS_LOCK = threading.Lock()
 _TTS_ENGINE = None
 
-from piper.voice import PiperVoice
+
+from silero_vad import SileroVAD
+
+vad = SileroVAD("silero_vad.onnx")
+from kokoro import KPipeline
+
+pipeline = KPipeline(lang_code="b")
+CURRENT_VOICE = "af_heart"
 # --- Piper TTS config ---
 _TTS_VOICE = None
-# --- Piper TTS config (MULTI VOICE) ---
-VOICE_DIR = "/Users/mehakagrawal/desktop/piper"
 
-_TTS_VOICES = {}          # name -> PiperVoice
-SELECTED_TTS_VOICE = "en_US-amy-medium"
 
-def load_piper_models():
-    global _TTS_VOICES
-
-    for file in os.listdir(VOICE_DIR):
-        if file.endswith(".onnx"):
-            name = file.replace(".onnx", "")
-            path = os.path.join(VOICE_DIR, file)
-
-            try:
-                _TTS_VOICES[name] = PiperVoice.load(path)
-                print(f"✅ Loaded Piper voice: {name}")
-            except Exception as e:
-                print(f"❌ Failed to load {name}: {e}")
-
-    if not _TTS_VOICES:
-        raise RuntimeError("No Piper voices loaded!")
-
-# load at startup
-load_piper_models()
 # --- helper to choose a safe output device ---
 def get_output_device():
     try:
@@ -89,68 +79,54 @@ def get_output_device():
 
     return None
 
+import io
+import wave
+import sounddevice as sd
+import soundfile as sf
+import io
+import numpy as np
+import sounddevice as sd
+import time
+
 def _tts_worker(text: str, voice_name: str):
     try:
-        voice = _TTS_VOICES.get(voice_name)
-        if voice is None:
-            print(f"Piper voice not found: {voice_name}")
+        audio_gen = pipeline(text, voice=voice_name)
+
+        audio_chunks = []
+        samplerate = 22050  # default, will override if available
+
+        for result in audio_gen:
+            audio = result.audio
+
+            # ✅ Tensor → NumPy
+            if hasattr(audio, "cpu"):
+                audio = audio.cpu().numpy()
+
+            audio_chunks.append(audio)
+
+            # get samplerate if provided
+            if hasattr(result, "sample_rate"):
+                samplerate = result.sample_rate
+
+        if not audio_chunks:
             return
 
-        # reset audio
-        try:
-            sd.stop()
-        except Exception:
-            pass
-        time.sleep(0.1)
-
-        # synthesize
-        output_path = "tts_output.wav"
-        sample_rate = getattr(getattr(voice, "config", {}), "sample_rate", 44100)
-        with wave.open(output_path, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(int(sample_rate))
-            voice.synthesize_wav(text, wf)
+        audio_data = np.concatenate(audio_chunks)
 
         if _TTS_STOP_FLAG.is_set():
             return
 
-        
+        # ✅ play
+        sd.play(audio_data, samplerate)
 
-        # choose device first
-        out_dev = get_output_device()
-        if out_dev is None:
-            print("⚠️ No output device found")
-            return
-        sd.default.device = (None, out_dev)
-        data, sr = sf.read(output_path, always_2d=False)
-        # play
-        try:
-            sd.play(data, sr, device=out_dev, blocking=False)
-        except Exception as e:
-            print("⚠️ Playback error:", e)
-            try:
-                sd.play(data, sr, device=None, blocking=False)
-            except:
-                return
-
-        # polling loop
-        duration = len(data) / float(sr)
-        start_t = time.time()
-        while True:
-            if _TTS_STOP_FLAG.is_set() or (time.time() - start_t) >= duration:
-                try:
-                    sd.stop()
-                except Exception:
-                    pass
+        while sd.get_stream().active:
+            if _TTS_STOP_FLAG.is_set():
+                sd.stop()
                 break
             time.sleep(0.05)
 
     except Exception as e:
-        print(f"[Piper TTS] Error: {e}")
-
-
-
+        print(f"[Kokoro TTS] Error: {e}")
 def start_tts(text: str, voice_name: str):
     """Stop previous TTS and start a new one (thread-safe)."""
     global _TTS_THREAD
@@ -196,7 +172,16 @@ def index():
             return "Error loading model. Check your setup.", 500
     return render_template("index.html")
 
-# Serve uploaded files (so your list can open them)
+SYSTEM_PROMPT = "You are a concise and helpful assistant. Limit your entire response to a maximum of 2 complete sentences or 40 words. If the given lines do not contain the answer use your own knowledge base to provide the answer."
+@app.route("/get_prompt", methods=["GET"])
+def get_prompt():
+    return jsonify({"prompt": SYSTEM_PROMPT})
+@app.route("/set_prompt", methods=["POST"])
+def set_prompt():
+    global SYSTEM_PROMPT
+    data = request.json
+    SYSTEM_PROMPT = data.get("prompt", SYSTEM_PROMPT)
+    return jsonify({"status": "updated"})
 @app.route("/uploads/<path:filename>")
 def serve_upload(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
@@ -288,8 +273,6 @@ def set_ollama_model():
     if not chosen:
         return jsonify({"error": "No model name provided"}), 400
 
-    # Optional: You might want to validate the model name against a list of available models here
-
     SELECTED_OLLAMA_MODEL = chosen
     print(f"✅ Ollama Model set to: {SELECTED_OLLAMA_MODEL}")
     return jsonify({"status": "ok", "selected_model": SELECTED_OLLAMA_MODEL})
@@ -320,9 +303,6 @@ def check_wake_word():
 
     audio_file = request.files['audio_file']
     audio_file.save(RECORD_PATH)
-
-    transcribed_text, info = transcribe_audio(RECORD_PATH)
-    text_norm = transcribed_text.strip().lower() if transcribed_text else ""
     if os.path.getsize(RECORD_PATH) < 1000: 
         return jsonify({
             "transcription": "",
@@ -330,6 +310,23 @@ def check_wake_word():
             "response_delay": 0,
             "wake_word_detected": False
         })
+    audio = decode_audio(RECORD_PATH)
+    audio = audio[:16000*5]
+    
+    speech_prob = vad.is_speech(audio)
+
+    print("Speech probability:", speech_prob)
+
+    if speech_prob < 0.7:
+        return jsonify({
+            "transcription": "",
+            "wake_word_detected": False
+        })
+    
+
+    transcribed_text, info = transcribe_audio(RECORD_PATH)
+    text_norm = transcribed_text.strip().lower() if transcribed_text else ""
+    
     # Empty transcription
     if not text_norm:
         return jsonify({
@@ -360,11 +357,25 @@ def check_wake_word():
 
     # Wake word present -> handle query
     try:
-        query_text = text_norm.replace(SELECTED_WAKE_WORD, "", 1).strip()
-        query_text = query_text.replace("tell me about", "").replace("can you explain", "").strip()
+        wake_index = text_norm.find(SELECTED_WAKE_WORD)
+
+        if wake_index == -1:
+            return jsonify({
+                "wake_word_detected": False,
+                "transcription": transcribed_text
+            })
+
+        # Keep only words AFTER wake word
+        # query_text = text_norm[wake_index + len(SELECTED_WAKE_WORD):].strip()
+        query_text = text_norm[wake_index + len(SELECTED_WAKE_WORD):].lstrip(", ").strip()
+
+        # Remove filler phrases
+        query_text = query_text.replace("tell me about", "")
+        query_text = query_text.replace("can you explain", "")
+        query_text = query_text.strip()
         if not query_text:
             return jsonify({
-                "transcription": transcribed_text,
+                "transcription": query_text,
                 "response": "Yes?",
                 "wake_word_detected": True
             })
@@ -376,11 +387,11 @@ def check_wake_word():
 
         # 🔊 Start speaking in the background (can be interrupted by "stop")
         
-        start_tts(model_response, SELECTED_TTS_VOICE)
+        start_tts(model_response, CURRENT_VOICE)
         word_count = len(model_response.split()) 
         response_delay = max(2, max(5, word_count * 0.5))
         return jsonify({
-            "transcription": transcribed_text,
+            "transcription": query_text,
             "response": model_response,
             "response_delay":response_delay ,  
             "wake_word_detected": True
@@ -392,22 +403,17 @@ def check_wake_word():
 @app.route("/get_tts_voices")
 def get_tts_voices():
     return jsonify({
-        "available": list(_TTS_VOICES.keys()),
-        "selected": SELECTED_TTS_VOICE
+        "available": AVAILABLE_VOICES,
+        "selected": CURRENT_VOICE
     })
 
 @app.route("/set_tts_voice", methods=["POST"])
 def set_tts_voice():
-    global SELECTED_TTS_VOICE
+    global CURRENT_VOICE
     data = request.json
-    voice = data.get("voice")
+    CURRENT_VOICE = data.get("voice", CURRENT_VOICE)
 
-    if voice not in _TTS_VOICES:
-        return jsonify({"error": "Invalid voice"}), 400
-
-    SELECTED_TTS_VOICE = voice
-    print(f"🔊 TTS Voice set to: {voice}")
-    return jsonify({"status": "ok", "selected": voice})
+    return jsonify({"status": "success", "voice": CURRENT_VOICE})
 
 def truncate_to_40_words_complete_sentences(text, max_words=30):
     # Join lines first
@@ -443,16 +449,16 @@ import re
 def chat_with_ollama(prompt: str, model: str = "") -> str:
     """Chats with Ollama using only a text prompt."""
     url = "http://localhost:11434/api/chat"
-    MAX_TOKENS = 100
+    MAX_TOKENS = 700
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": "You are a concise, direct, and helpful assistant. **NEVER use any introductory phrases, greetings, or conversational preambles** (e.g., 'Okay, let's dive into...',  'Okay, let's delve into...','That's a great question', 'Here is your answer'). **Start immediately with the content.** Limit your entire response to a maximum of 2 complete sentences or 40 words."},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
         ],
         "options": {
             "num_predict": MAX_TOKENS, 
-            "stop": [ "\n\n"] 
+            # "stop": [ "\n\n"] 
         }
     }
     try:
@@ -522,9 +528,23 @@ def ask_model():
 from flask import Flask, jsonify, request
 import subprocess
 import os
-import time 
 
-# --- Ollama Control Endpoints ---
+import time 
+# @app.route("/system_usage", methods=["GET"])
+# def system_usage():
+   
+#     process = psutil.Process(os.getpid())
+
+#     cpu_percent = process.cpu_percent(interval=0.5)
+#     ram_mb = process.memory_info().rss / (1024 ** 2)
+#     system_ram_percent = psutil.virtual_memory().percent
+
+#     return jsonify({
+#         "process_cpu_percent": round(cpu_percent, 2),
+#         "process_ram_mb": round(ram_mb, 2),
+#         "system_ram_percent": round(system_ram_percent, 2)
+#     })
+# # --- Ollama Control Endpoints ---
 
 @app.route('/ollama_status', methods=['GET'])
 def ollama_status():
@@ -578,6 +598,7 @@ def get_chat_history():
     return jsonify({"chats": chat_history})
 
 
+
 @app.route('/describe_image', methods=['POST'])
 def describe_image():
     if 'image' not in request.files:
@@ -594,8 +615,9 @@ def describe_image():
     # We instruct the model to analyze everything but summarize the output
     summary_prompt = (
         f"Analyze this image based on the request: '{base_prompt}'. "
-        "Summarize the entire description into less than or equal to 4 concise bullet points. "
+        "Summarize the entire description into atmost 40 words "
         "Focus only on the most important details."
+        "Do not say 'here is the concise response' or similar - just give the concise summary directly."
     )
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
@@ -607,7 +629,7 @@ def describe_image():
     try:
         image_file.save(save_path)
         # NOTE: Ensure you have a multimodal model like 'gemma3:4b' installed in Ollama
-        model_response = chat_with_ollama_multimodal(summary_prompt, save_path, model="gemma3:4b")
+        model_response = chat_with_ollama_multimodal(summary_prompt, save_path, model="ngo-model:latest")  # Adjust model name as needed
 
         # Cleanup the saved image file after processing
         os.remove(save_path)
@@ -626,7 +648,7 @@ def describe_image():
             os.remove(save_path)
         print(f"Image description error: {e}")
         return jsonify({"error": str(e)}), 500
-def chat_with_ollama_multimodal(prompt: str, image_path: None, model: str = "gemma3:4b") -> str:
+def chat_with_ollama_multimodal(prompt: str, image_path: None, model: str = "ngo-model:latest") -> str:
     """Chats with Ollama, including an image."""
     url = "http://localhost:11434/api/chat"
 
@@ -673,16 +695,16 @@ def chat_with_ollama_multimodal(prompt: str, image_path: None, model: str = "gem
     except requests.RequestException as e:
         return f"Request failed: {str(e)}"
 
-def read_data_file(filename="data.txt") -> str:
+def read_data_file(filename="data2.txt") -> str:
     try:
         with open(filename, "r", encoding="utf-8") as file:
             return file.read().strip()
     except FileNotFoundError:
-        return "Error: data.txt not found!"
+        return "Error: data2.txt not found!"
     except Exception as e:
         return f"Error reading file: {str(e)}"
 
-def read_pdf(pdf_path, txt_file='data.txt'):
+def read_pdf(pdf_path, txt_file='data2.txt'):
     try:
         with open(pdf_path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
@@ -697,7 +719,7 @@ def read_pdf(pdf_path, txt_file='data.txt'):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def read_docx(docx_path, txt_file='data.txt'):
+def read_docx(docx_path, txt_file='data2.txt'):
     try:
         doc = Document(docx_path)
         full_text = '\n'.join([para.text for para in doc.paragraphs])
@@ -725,4 +747,5 @@ if __name__ == '__main__':
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
     app.run(debug=False)
+
 
