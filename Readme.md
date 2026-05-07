@@ -1,59 +1,134 @@
-# ALOPA: An AI-Powered Lightweight On-Device Private Assistant
+# Beyond the Cloud: Offline Secure Voice Assistance
 
 ## Overview
-The proposed system is a completely offline and on-device, AI-based personal assistant. It ensures data privacy since it does not send user data to any external server. 
 
-<!-- ## System Architecure
-This system takes in voice input from the user. Only when the wake-word is detected, the query along with the context is sent to the LLM for generating a response to user query. The response is converted to speech to provided a voice output to the user. -->
-
-## Features
-1. Fully offline and on-device functionality.
-2. Offline Speech-To-Text conversion using faster-whisper.
-3. Offline Text-To-Speech conversion using Piper TTS.
-4. Complete Hands-free functionality.
-5. Wake-word based interaction.
-6. Document-based query support.
-7. Image-based query input.
+The proposed system is a fully offline, on-device AI voice assistant designed for **privacy-first interaction**. It supports wake-word activation, speech to text conversion, local LLM responses via Ollama, and natural-sounding TTS using Kokoro.
 
 
-## System Requirements
-1. macOS 
-2. **Headphones are highly recommended to prevent self-interruption.**
-3. Python3.10+ 
-4. Ollama: Required for running local LLMs
-5. ffmpeg: Required for audio decoding
-6. PortAudio: Required for audio playback
+---
 
-## Setup Instructions
-1. Clone the repository install all required dependencies: 
-    ```
-    brew install ffmpeg portaudio
-    ```
-2. Download ollama from: https://ollama.com
-3. Start Ollama
+##  Features
 
-    ```
-    ollama serve
-    ```
-3. Pull required models, for example: Gemma3 1b, Qwen2.5 1.5B etc.
-    ```
-    ollama pull gemma3:1b
-    ollama pull qwen2.5:1.5b
-    ```
-4. Create and activate a virtual environment: 
-    ```
-    python -m venv venv
-    source venv/bin/activate
-    ```
+* Fully offline & private 
+*  Wake-word based activation 
+*  Local LLM responses using Ollama
+*  Speech-to-Text using Faster-Whisper
+*  Text-to-Speech using Kokoro TTS
+*  Document-based querying (PDF & DOCX)
+*  Image-based query support
 
-5. Install all requirements:
-    ```
-    pip install -r requirements.txt 
-    ```
-6. Download Piper voices(.onnx and .onnx.json) from https://github.com/OHF-Voice/piper1-gpl
-7. Place both the .onnx and .onnx.json files in a single directory. Update the directory path in main.py.
-8. Run the system : 
-    ```
-    python main.py
-    ```
+##  System Requirements
 
+* macOS 
+* Python 3.10+
+* Headphones (strongly recommended)
+
+### Dependencies (System-level)
+
+```bash
+brew install ffmpeg portaudio
+```
+
+### Install Ollama from: 
+https://ollama.com
+
+---
+
+##  Setup Instructions
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/mehakagrawal02/On-device-Privacy-Preserving-AI-Assistant.git
+cd On-device-Privacy-Preserving-AI-Assistant
+```
+
+---
+
+### 2. Start Ollama
+
+```bash
+ollama serve
+```
+
+---
+
+### 3. Pull Required Models
+
+```bash
+ollama pull gemma3:1b
+ollama pull qwen2.5:1.5b
+ollama pull gemma3:4b
+ollama pull gemma4:e2b
+```
+---
+
+### 4. Create Virtual Environment
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+---
+
+### 5. Install Python Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### 6. Download Required Models
+
+####  Silero VAD
+
+Download `silero_vad.onnx` from https://github.com/snakers4/silero-vad and place it in the root directory.
+
+####  Kokoro TTS
+
+Download:
+
+```
+kokoro-v1.0.onnx
+voices-v1.0.bin
+```
+
+From:
+https://github.com/nazdridoy/kokoro-tts
+
+Place both files in the root project directory (same folder as main.py).
+---
+
+### 7. Run the Application
+
+```bash
+python main.py
+```
+
+---
+
+
+##  File Structure
+
+```
+├── main.py
+├── data2.txt             
+├── uploads/               
+├── templates/
+├── static/
+├── silero_vad.onnx
+└── requirements.txt
+```
+
+---
+
+
+### How to Interact with the System
+1. Voice Queries: Speak the wake word along with the query to interact hands-free with the assistant.
+2. Text-Based Queries: Queries can also be entered directly through text input.
+3. Document Queries: Upload a PDF or DOCX file and ask questions related to the document using either voice or text.
+4. Image-Based Queries: Provide a question related to the image and capture an image for visual query processing.
+5. Settings: The system allows users to customise the wake word, select different local LLMs, and change the response voice. 
+6. Custom Prompt: Allows to modify the system's responses as per user preference.
